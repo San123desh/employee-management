@@ -1,2 +1,82 @@
+
+version: "3.8"
+
+# What: The containers you want to run together
 services:
-  $END$
+
+  # ───  SPRING BOOT APP ────────────────────────────────────
+  app:
+    # What: Build the image from the Dockerfile in the current directory (.)
+    # Why:  Tells Docker "use my Dockerfile to build this image"
+    # How:  "build: ." means "look for Dockerfile in the same folder as this yml"
+    build: .
+
+    # What: Name the container (optional, for `docker logs app`)
+    container_name: employee-app
+
+    # What: Map host port → container port
+    # Why:  Your app runs on 8080 INSIDE the container.
+    #       This makes it accessible at localhost:8080 on YOUR machine.
+    # How:  "host:container" format. Both are 8080 here.
+    ports:
+      - "8080:8080"
+
+    # What: Environment variables injected into the container
+    # Why:  Spring Boot reads these and OVERRIDES application.yml values.
+    #       This is how you switch from H2 → PostgreSQL without changing code.
+    # How:  Spring's relaxed binding: SPRING_DATASOURCE_URL → spring.datasource.url
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+    # What: "Start me AFTER db is up"
+    # Why:  Your app needs PostgreSQL to be running before it can connect.
+    # How:  Without this, the app might start before the DB is ready → crash.
+    #       NOTE: depends_on only waits for the container to START, not for
+    #       PostgreSQL to be fully ready. For production, add a retry mechanism.
+    depends_on:
+      - db
+
+
+  # ─── POSTGRESQL DATABASE ─────────────────────────────────────
+  db:
+    # What: Use the official PostgreSQL 16 image from Docker Hub
+    # Why:  Pre-configured, tested, maintained by the PostgreSQL team.
+    #       You don't install PostgreSQL locally — Docker pulls it.
+    image: postgres:16
+
+    # What: Name the container
+    container_name: employee-db
+
+    # What: Map host port → container port
+    # Why:  Lets you connect from outside (e.g., DBeaver, pgAdmin) on port 5432.
+    # How:  Inside the Docker network, the app reaches it at "db:5432".
+    #       From your host machine, you reach it at "localhost:5432".
+    ports:
+      - "5432:5432"
+
+    # What: PostgreSQL's own config (database name, user, password)
+    # Why:  The official postgres image reads these on first start to
+    #       create the database and user automatically.
+    # How:  Without these, the image doesn't know what DB to create.
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+
+    # What: Persistent storage
+    # Why:  Without this, all data is LOST when the container stops.
+    #       A named volume survives `docker-compose down` (but not `down -v`).
+    # How:  "pgdata:/var/lib/postgresql/data" = named volume mounted at PG's data dir.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+
+# What: Define the named volumes (referenced by services)
+# Why:  Declared here so they're created/managed by Compose.
+# How:  `docker volume ls` will show "pgdata" after first `up`.
+volumes:
+  pgdata:   

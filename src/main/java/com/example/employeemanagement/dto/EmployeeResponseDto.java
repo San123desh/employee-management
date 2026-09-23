@@ -1,4 +1,4 @@
 package com.example.employeemanagement.dto;
 
-public class EmployeeServiceImpl {
+public class EmployeeResponseDto {
 }

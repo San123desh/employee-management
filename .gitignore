@@ -31,3 +31,23 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Environment-specific config (keep application.yml, ignore overrides)
+application-local.yml
+application-local.properties
+
+
+# H2 file-based DB (if you switch to file mode)
+*.mv.db
+*.trace.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Secrets
+.env
